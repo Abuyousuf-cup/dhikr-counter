@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>عداد الأذكار</title>
+  <style>
+    body{
+      margin:0; font-family: system-ui, -apple-system, "Segoe UI", Arial;
+      background:#0b1220; color:#fff; min-height:100vh;
+      display:flex; align-items:center; justify-content:center;
+      padding:18px;
+    }
+    .card{
+      width:min(720px, 100%);
+      background:rgba(255,255,255,0.06);
+      border:1px solid rgba(255,255,255,0.12);
+      border-radius:18px; padding:18px;
+      box-shadow:0 10px 30px rgba(0,0,0,0.35);
+    }
+    h1{margin:0 0 8px; font-size:20px;}
+    p{margin:0 0 14px; opacity:0.9; line-height:1.7}
+
+    .intention{
+      margin:12px 0 18px;
+      padding:14px;
+      border-radius:16px;
+      background:rgba(34,197,94,0.15);
+      border:1px solid rgba(34,197,94,0.5);
+      font-weight:900;
+      line-height:1.9;
+      text-align:center;
+      font-size:16px;
+    }
+
+    .topbar{
+      display:flex; gap:10px; flex-wrap:wrap;
+      margin:10px 0 14px;
+    }
+    .btn{
+      padding:12px 12px;
+      border-radius:14px;
+      border:1px solid rgba(255,255,255,0.18);
+      background:rgba(255,255,255,0.08);
+      color:#fff; cursor:pointer;
+      font-weight:800;
+      flex:1;
+      min-width:160px;
+    }
+    .btn:active{transform:scale(0.99)}
+
+    .grid{
+      display:grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap:12px;
+      margin-top:10px;
+    }
+
+    .dhikr{
+      background:rgba(255,255,255,0.06);
+      border:1px solid rgba(255,255,255,0.12);
+      border-radius:16px;
+      padding:14px;
+    }
+
+    .countRow{
+      display:flex; align-items:baseline; justify-content:space-between;
+      gap:10px; margin-bottom:10px;
+    }
+
+    .count{
+      font-size:40px; font-weight:900; letter-spacing:1px;
+    }
+
+    .target{
+      opacity:0.8; font-size:14px;
+    }
+
+    .tap{
+      width:100%;
+      padding:16px 14px;
+      font-size:18px; font-weight:900;
+      border-radius:16px;
+      border:1px solid rgba(255,255,255,0.18);
+      background:rgba(59,130,246,0.18);
+      color:#fff;
+      cursor:pointer;
+      user-select:none;
+      touch-action:manipulation;
+      transition: background 0.2s ease, border-color 0.2s ease;
+    }
+
+    .tap.done{
+      background: rgba(34,197,94,0.28);
+      border-color: rgba(34,197,94,0.7);
+    }
+
+    .miniActions{
+      display:flex; gap:10px; flex-wrap:wrap; margin-top:10px;
+    }
+
+    .mini{
+      flex:1;
+      padding:10px;
+      border-radius:14px;
+      border:1px solid rgba(255,255,255,0.18);
+      background:rgba(255,255,255,0.08);
+      color:#fff; cursor:pointer;
+      font-weight:800;
+      min-width:120px;
+    }
+
+    .note{margin-top:12px; font-size:13px; opacity:0.8; line-height:1.7}
+
+    .toast{
+      position: fixed;
+      bottom: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.65);
+      border: 1px solid rgba(255,255,255,0.16);
+      padding: 10px 12px;
+      border-radius: 14px;
+      font-weight: 800;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+    .toast.show{opacity: 1;}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>عداد الأذكار (حتى 33)</h1>
+
+    <div class="intention">
+      على نية طلب الشفاء و التخفيف من ألم المرض لِـ<br>
+      يوسف كليب ( ابو محمد )<br>
+      و سامي كليب ( ابو عمر )
+    </div>
+
+    <p>
+      اضغط على الذكر لزيادة العدّاد. عند الوصول إلى <b>33</b> يصبح الزر <b>أخضر</b>.
+      يتم حفظ الأرقام تلقائيًا على جهازك.
+    </p>
+
+    <div class="topbar">
+      <button class="btn" id="shareBtn">مشاركة الصفحة</button>
+      <button class="btn" id="resetAllBtn">تصفير الكل</button>
+    </div>
+
+    <div class="grid" id="grid"></div>
+
+    <div class="note">
+      نية نشر الأجر والثواب: شارك الرابط مع من تحب 🌿
+    </div>
+  </div>
+
+  <div class="toast" id="toast">تم</div>
+
+  <script>
+    const TARGET = 33;
+
+    const items = [
+      { id: "istighfar", text: "أستغفر الله العظيم" },
+      { id: "subhan",    text: "سبحان الله وبحمده" },
+      { id: "hamd",      text: "الحمد لله رب العالمين" },
+      { id: "tahlil",    text: "لا اله الا الله" },
+      { id: "takbir",    text: "الله اكبر" },
+    ];
+
+    const grid = document.getElementById("grid");
+    const toast = document.getElementById("toast");
+
+    function keyFor(id){ return "dhikr_" + id; }
+    function getVal(id){ return Number(localStorage.getItem(keyFor(id)) || 0); }
+    function setVal(id, v){ localStorage.setItem(keyFor(id), String(v)); }
+
+    function vibrate(){ if (navigator.vibrate) navigator.vibrate(18); }
+
+    function showToast(msg){
+      toast.textContent = msg;
+      toast.classList.add("show");
+      setTimeout(() => toast.classList.remove("show"), 1200);
+    }
+
+    function render(){
+      grid.innerHTML = "";
+      for (const it of items){
+        const val = getVal(it.id);
+
+        const box = document.createElement("div");
+        box.className = "dhikr";
+
+        const countRow = document.createElement("div");
+        countRow.className = "countRow";
+
+        const count = document.createElement("div");
+        count.className = "count";
+        count.id = "count_" + it.id;
+        count.textContent = val;
+
+        const target = document.createElement("div");
+        target.className = "target";
+        target.textContent = `الهدف: ${TARGET}`;
+
+        countRow.appendChild(count);
+        countRow.appendChild(target);
+
+        const tap = document.createElement("button");
+        tap.className = "tap" + (val >= TARGET ? " done" : "");
+        tap.textContent = it.text;
+
+        tap.addEventListener("click", () => {
+          let v = getVal(it.id);
+          if (v < TARGET) {
+            v++;
+            setVal(it.id, v);
+            count.textContent = v;
+            if (v >= TARGET) {
+              tap.classList.add("done");
+              showToast("ما شاء الله ✅ وصلت 33");
+            }
+            vibrate();
+          } else {
+            showToast("مكتمل ✅ (33)");
+            vibrate();
+          }
+        });
+
+        const miniActions = document.createElement("div");
+        miniActions.className = "miniActions";
+
+        const resetBtn = document.createElement("button");
+        resetBtn.className = "mini";
+        resetBtn.textContent = "تصفير هذا الذكر";
+        resetBtn.onclick = () => {
+          setVal(it.id, 0);
+          count.textContent = 0;
+          tap.classList.remove("done");
+          showToast("تم التصفير");
+          vibrate();
+        };
+
+        miniActions.appendChild(resetBtn);
+
+        box.appendChild(countRow);
+        box.appendChild(tap);
+        box.appendChild(miniActions);
+
+        grid.appendChild(box);
+      }
+    }
+
+    async function sharePage(){
+      const url = window.location.href;
+      const title = document.title;
+      const text = "عداد الأذكار (حتى 33) — شارك للأجر 🌿";
+
+      try{
+        if (navigator.share) {
+          await navigator.share({ title, text, url });
+          showToast("تمت المشاركة");
+        } else {
+          await navigator.clipboard.writeText(url);
+          showToast("تم نسخ الرابط");
+        }
+      } catch {
+        showToast("انسخ الرابط من شريط العنوان");
+      }
+    }
+
+    document.getElementById("shareBtn").addEventListener("click", sharePage);
+    document.getElementById("resetAllBtn").addEventListener("click", () => {
+      for (const it of items) setVal(it.id, 0);
+      render();
+      showToast("تم تصفير الكل");
+      vibrate();
+    });
+
+    render();
+  </script>
+</body>
+</html>
